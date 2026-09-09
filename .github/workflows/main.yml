@@ -30,16 +30,31 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Install Gradle
+      - name: Install Gradle 8.7
         run: |
           wget -q https://services.gradle.org/distributions/gradle-8.7-bin.zip
           unzip -q gradle-8.7-bin.zip -d "$HOME"
           echo "$HOME/gradle-8.7/bin" >> "$GITHUB_PATH"
 
+      - name: Fix Kotlin dependencies
+        run: |
+          cat > "$RUNNER_TEMP/fix-kotlin.gradle" <<'EOF'
+          allprojects {
+              configurations.configureEach {
+                  exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk7'
+                  exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk8'
+              }
+          }
+          EOF
+
       - name: Build APK
         run: |
           cd "$PROJECT_DIR"
-          gradle assembleDebug --no-daemon
+          gradle --init-script "$RUNNER_TEMP/fix-kotlin.gradle" assembleDebug --no-daemon
+
+      - name: Find APK
+        run: |
+          find "$PROJECT_DIR" -type f -name "*.apk"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
